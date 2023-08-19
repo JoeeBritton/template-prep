@@ -1,0 +1,121 @@
+---
+- name: Cleanup logs
+  block:
+    - name: Get logs
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: logs
+      loop:
+        - /var/log/audit/audit.log
+        - /var/log/wtmp
+        - /var/log/lastlog
+        - /var/log/grubby
+
+    - name: Truncate logs
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ item.stat.path }}"
+        mode: "0664"
+      when: item.stat.exists
+      loop: "{{ logs.results }}"
+
+- name: Clean udev rules
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - /etc/udev/rules.d/70-*
+
+- name: Remove /var/tmp
+  ansible.builtin.file:
+    path: /var/tmp
+    state: absent
+
+- name: Create /var/tmp
+  ansible.builtin.file:
+    path: /var/tmp
+    state: directory
+    owner: root
+    group: root
+    mode: "1777"
+
+- name: Remove /tmp
+  ansible.builtin.file:
+    path: /tmp
+    state: absent
+
+- name: Create /tmp
+  ansible.builtin.file:
+    path: /tmp
+    state: directory
+    owner: root
+    group: root
+    mode: "1777"
+
+- name: Remove SSH host keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_fileglob:
+    - /etc/ssh/ssh_host_*
+
+- name: Uninitialize machine-id
+  ansible.builtin.copy:
+    content: "uninitialized\n"
+    dest: /etc/machine-id
+    owner: root
+    group: root
+    mode: "0444"
+
+- name: Remove user bash history
+  ansible.builtin.command:
+    cmd: rm -f /home/*/.bash_history
+    removes: /home/*/.bash_history
+
+- name: Remove root bash history
+  ansible.builtin.file:
+    path: /root/.bash_history
+    state: absent
+
+- name: Clean network configuration
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ item }}"
+    mode: "0644"
+  loop:
+    - /etc/hosts
+    - /etc/resolv.conf
+
+- name: Clean apt cache
+  ansible.builtin.apt:
+    autoclean: true
+    autoremove: true
+    clean: true
+
+- name: Clean cloud-init seed
+  ansible.builtin.command:
+    cmd: cloud-init clean --seed
+    removes: /var/lib/cloud/seed
+
+- name: Clean cloud-init logs
+  ansible.builtin.command:
+    cmd: cloud-init clean --logs
+    removes: /var/log/cloud-init.log
+    # includes:
+    # /var/log/cloud-init.log
+    # /var/log/cloud-init-output.log
+    # /run/cloud-init
+    # /var/lib/cloud/instance/user-data.txt
+    # cloud-init package version
+    # dmesg output
+    # journalctl output
+
+- name: Remove root ssh configuration
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: absent
+
+- name: Remove user ssh configurations
+  ansible.builtin.command:
+    cmd: rm -rf /home/*/.ssh
+    removes: /home/*/.ssh
