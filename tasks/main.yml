@@ -119,3 +119,23 @@
   ansible.builtin.command:
     cmd: rm -rf /home/*/.ssh
     removes: /home/*/.ssh
+
+- name: Zero out free space on disk using dd
+  when: zero_disk == true
+  block:
+    - name: Write a zero file to each mount point
+      ansible.builtin.command:
+        cmd: dd if=/dev/zero of={{ item }}EMPTY bs=1M
+        creates: "{{ item }}EMPTY"
+      loop: "{{ mount_points }}"
+
+    - name: Remove the written file
+      ansible.builtin.file:
+        path: "{{ item }}EMPTY"
+        state: absent
+      loop: "{{ mount_points }}"
+
+- name: Ensure all data is written to disk before exiting
+  ansible.builtin.command:
+    cmd: sync
+    changed_when: false

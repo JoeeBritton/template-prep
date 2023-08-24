@@ -1,0 +1,3 @@
+zero_disk: true
+mount_points:
+  - /
