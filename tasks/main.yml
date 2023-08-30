@@ -127,14 +127,22 @@
       ansible.builtin.command:
         cmd: dd if=/dev/zero of={{ item }}EMPTY bs=1M
         creates: "{{ item }}EMPTY"
+      register: result
+      failed_when:
+        - '"Permission denied" in result.stdout'
+        - '"Read-only file system" in result.stdout'
+        - '"No such file or directory" in result.stdout'
       loop: "{{ mount_points }}"
 
+    # can't use ansible module here becuase it writes a tmp file and the disk is full
     - name: Remove the written file
-      ansible.builtin.file:
-        path: "{{ item }}EMPTY"
-        state: absent
+      ansible.builtin.command:
+        cmd: "rm -f {{ item }}EMPTY"
       loop: "{{ mount_points }}"
 
-- name: Ensure all data is written to disk before exiting
+- name: Synchronize cached writes to persistent storage
   ansible.builtin.command:
     cmd: sync
+  register: sync
+  failed_when: sync.rc != 0
+  changed_when: false
