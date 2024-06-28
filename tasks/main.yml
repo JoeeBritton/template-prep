@@ -77,15 +77,6 @@
     path: /root/.bash_history
     state: absent
 
-- name: Clean network configuration
-  ansible.builtin.copy:
-    content: ""
-    dest: "{{ item }}"
-    mode: "0644"
-  loop:
-    - /etc/hosts
-    - /etc/resolv.conf
-
 - name: Clean apt cache
   ansible.builtin.apt:
     autoclean: true
